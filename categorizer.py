@@ -39,27 +39,38 @@ CATEGORIES: dict[str, list[str]] = {
     "💸 Transactions": [
     "העברה", "העברת",  # transfers (without דיגיטל - that's rent)
     "ז.בנק", "ז. בנק",  # bank transfers
+<<<<<<< HEAD
     "הע. אינטרנטית", "העברה אינטרנטית",  # online transfers
+=======
+>>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
 ],
 
     "🍎 Groceries": [
         "שופרסל", "רמי לוי", "מגה", "ויקטורי", "יינות ביתן", "אושר עד",
         "מחסני השוק", "קרפור", "am:pm", "טיב טעם", "קשת טעמים",
         "שוק פייסל", "החמניה", "שלי", "ירקות", "פירות",
+<<<<<<< HEAD
         "ספיד","פרישוק", "סינמטק ראש פינה",
         "מקור הפיצוחים בעמ",   # ספיד בראשית - local grocery
         "דהן מרקט",
+=======
+        "ספיד","פרישוק", "סינמטק ראש פינה"  # ספיד בראשית - local grocery
+>>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "🍽️ Restaurants & Cafes": [
         "וולט", "wolt", "10bis", "מסעדה", "קפה", "פיצה", "סושי",
         "המבורגר", "פלאפל", "מקדונלד", "ארומה", "דיווין", "איזי פאף",
         "שווארמה", "גלידה", "מאפה", "מאפייה", "הלב הכחול",
+<<<<<<< HEAD
         "מנדרין","מסעדת אמבר", "מסעדת טורקיז", "מסעדת בראון", "מסעדת ג'ויה",
         "גרג אודיטוריום", "גרג קניון", "גרג קרית אתא", "גרג קרית ביאליק",
         "י.ע.ל בני ציון", "י.ע.ל קרית אתא", "י.ע.ל קרית ביאליק","PAYPAL *CAFEKINNERE",
         "מסעדת אמרטי",
 
+=======
+        "מנדרין",
+>>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "🚗 Transport": [
@@ -109,7 +120,10 @@ CATEGORIES: dict[str, list[str]] = {
         "netflix", "spotify", "apple tv", "disney", "youtube",
         # Phone carriers
         "סלקום", "פרטנר", "פלאפון", "גולן טלקום",
+<<<<<<< HEAD
         "מרכז לבריאות השיער",
+=======
+>>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "🛍️ Shopping & Clothing": [
@@ -118,8 +132,11 @@ CATEGORIES: dict[str, list[str]] = {
         "ikea", "ace", "we shose", "נעליים", "ביגוד",
         "הום סנטר",
         "ביג מקס", "מקס סטוק",
+<<<<<<< HEAD
         "Temu.com", "זול סטוק קרית מוצקין",
 
+=======
+>>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "🐾 Pets": [
@@ -131,15 +148,23 @@ CATEGORIES: dict[str, list[str]] = {
     ],
 
     "🎬 Entertainment": [
+<<<<<<< HEAD
         "קולנוע", "תיאטרון", "כרטיסים","אתדגיס אור ד.ג. בע''מ", "סינמה סיטי", "יס פלאנט",
           "סינמטק", "בארד פרודקשנס-יציל", "רשות הטבע והגנים ציפורים", "רשות הטבע והגנים הר הכרמל", 
           "רשות הטבע והגנים - מבצר נמרוד",
+=======
+        "קולנוע", "תיאטרון", "כרטיסים",
+>>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "✈️ Travel": [
         "booking", "airbnb", "ryanair", "wizz", "easyjet", "אל על",
+<<<<<<< HEAD
         "מלון", "טיסה","רשות הטבע והגנים יחיעם", "רשות הטבע והגנים חוף אכזיב",
 
+=======
+        "מלון", "טיסה",
+>>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "💰 Income": [
