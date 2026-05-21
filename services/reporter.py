@@ -3,7 +3,7 @@
 """
 reporter.py - reporting utilities
 """
-
+from ..importer import Transaction
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path

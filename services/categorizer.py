@@ -6,7 +6,6 @@ categorizer.py - transaction categorization
 
 import re
 from typing import Optional
-
 from importer import Transaction
 
 

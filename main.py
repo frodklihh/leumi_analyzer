@@ -1,17 +1,9 @@
-# main.py
-
-"""
-Usage:
-
-python main.py bank.xls card.xlsx
-"""
-
 import argparse
 from pathlib import Path
 
 from importer import load_file
-from categorizer import categorize
-from reporter import (
+from services import (
+    categorize,
     combined_summary,
     filter_transactions,
     print_unknown_transactions,
@@ -66,16 +58,9 @@ def main():
         month=args.month,
     )
 
-    combined_summary(
-        bank_transactions,
-        card_transactions,
-    )
-    save_html_report(
-    bank_transactions,
-    card_transactions,
-)
-
+    combined_summary(bank_transactions, card_transactions)
     print_unknown_transactions(card_transactions)
+    save_html_report(bank_transactions, card_transactions)
 
 
 if __name__ == "__main__":
