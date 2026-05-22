@@ -24,7 +24,18 @@
             margin-right: 8px;
         }
 
-        .summary { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
+            margin-top: 24px;
+        }
+        .section-label:first-of-type { margin-top: 0; }
+
+        .summary { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
         .card {
             background: white;
             padding: 20px 24px;
@@ -43,8 +54,9 @@
         .value { font-size: 1.5rem; font-weight: 700; }
         .income-amount { color: #2a9d8f; }
         .expense-amount { color: #e63946; }
+        .pending-card { border-left: 4px solid #f4a261; }
 
-        .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tabs { display: flex; gap: 8px; margin: 32px 0 20px; flex-wrap: wrap; }
         .tab-btn {
             padding: 10px 24px;
             border: none;
@@ -89,13 +101,6 @@
         .category-card[open] .category-header::after { transform: rotate(180deg); }
 
         .table-container { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
-        .income-table {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 16px;
-        }
 
         table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
         th {
@@ -111,6 +116,7 @@
         .amount { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
         .unknown-section { border: 1px dashed #e63946; }
 
+        /* Monthly sections */
         .month-section {
             background: white;
             border-radius: 12px;
@@ -154,7 +160,7 @@
             border-top: 1px solid #eee;
         }
 
-        .section-title {
+        .nested-section-title {
             font-size: 0.85rem;
             font-weight: 600;
             color: #666;
@@ -170,6 +176,16 @@
             margin-bottom: 8px;
         }
         .category-card.nested[open] { box-shadow: none; border-color: #ddd; }
+
+        .pending-note {
+            background: #fff8ec;
+            border-left: 4px solid #f4a261;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            color: #614011;
+        }
     </style>
 </head>
 <body>
@@ -179,40 +195,58 @@
         Generated on {{ now }}
     </p>
 
+    <div class="section-label">📊 Account movement</div>
     <div class="summary">
         <div class="card">
             <h3>Opening Balance</h3>
             <div class="value">₪{{ "{:,.2f}".format(report.opening_balance) }}</div>
         </div>
         <div class="card">
+            <h3>Closing Balance</h3>
+            <div class="value">₪{{ "{:,.2f}".format(report.closing_balance) }}</div>
+        </div>
+        <div class="card">
+            <h3>Δ Balance</h3>
+            <div class="value {{ 'income-amount' if report.balance_change >= 0 else 'expense-amount' }}">
+                {{ '+' if report.balance_change >= 0 else '' }}₪{{ "{:,.2f}".format(report.balance_change) }}
+            </div>
+        </div>
+    </div>
+
+    <div class="section-label">💰 Real picture</div>
+    <div class="summary">
+        <div class="card">
             <h3>Total Income</h3>
             <div class="value income-amount">₪{{ "{:,.2f}".format(report.total_income) }}</div>
         </div>
         <div class="card">
-            <h3>Total Expenses</h3>
+            <h3>Real Expenses</h3>
             <div class="value expense-amount">₪{{ "{:,.2f}".format(report.total_expenses) }}</div>
         </div>
         <div class="card">
-            <h3>Net Change</h3>
-            <div class="value {{ 'income-amount' if report.net >= 0 else 'expense-amount' }}">
-                ₪{{ "{:,.2f}".format(report.net) }}
+            <h3>Real Net</h3>
+            <div class="value {{ 'income-amount' if report.real_net >= 0 else 'expense-amount' }}">
+                {{ '+' if report.real_net >= 0 else '' }}₪{{ "{:,.2f}".format(report.real_net) }}
             </div>
-        </div>
-        <div class="card">
-            <h3>Balance Change</h3>
-            <div class="value {{ 'income-amount' if report.balance_change >= 0 else 'expense-amount' }}">
-                ₪{{ "{:,.2f}".format(report.balance_change) }}
-            </div>
-        </div>
-        <div class="card">
-            <h3>Closing Balance</h3>
-            <div class="value">₪{{ "{:,.2f}".format(report.closing_balance) }}</div>
         </div>
     </div>
+
+    {% if report.pending_cc > 0 %}
+    <div class="section-label">⏳ Pending charges</div>
+    <div class="summary">
+        <div class="card pending-card">
+            <h3>Will be charged soon</h3>
+            <div class="value expense-amount">₪{{ "{:,.2f}".format(report.pending_cc) }}</div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab(event, 'expenses')">💸 Expenses</button>
         <button class="tab-btn" onclick="switchTab(event, 'income')">💰 Income</button>
+        {% if report.pending_transactions %}
+        <button class="tab-btn" onclick="switchTab(event, 'pending')">⏳ Pending</button>
+        {% endif %}
         {% if report.monthly_breakdown %}
         <button class="tab-btn" onclick="switchTab(event, 'monthly')">📅 By Month</button>
         {% endif %}
@@ -274,6 +308,38 @@
         {% endif %}
     </div>
 
+    {% if report.pending_transactions %}
+    <div id="pending" class="tab-content">
+        <div class="pending-note">
+            These transactions are not yet reflected in your account balance.
+            Card purchases will be charged on the next billing cycle.
+        </div>
+        <details class="category-card" open>
+            <summary class="category-header">
+                <span>⏳ All pending transactions</span>
+                <span class="amount expense-amount">₪{{ "{:,.2f}".format(report.pending_cc) }}</span>
+            </summary>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Date</th><th>Description</th><th>Source</th><th>Amount</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in report.pending_transactions %}
+                        <tr>
+                            <td>{{ tx.date.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ tx.description }}</td>
+                            <td>{{ tx.source }}</td>
+                            <td class="amount expense-amount">₪{{ "{:,.2f}".format(tx.debit) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    </div>
+    {% endif %}
+
     {% if report.monthly_breakdown %}
     <div id="monthly" class="tab-content">
         {% for m in report.monthly_breakdown %}
@@ -291,7 +357,7 @@
 
             <div class="month-body">
                 {% if m.categories %}
-                <h3 class="section-title">💸 Expenses by category</h3>
+                <h3 class="nested-section-title">💸 Expenses by category</h3>
                 {% for cat in m.categories %}
                 <details class="category-card nested{% if cat.name == unknown_category %} unknown-section{% endif %}">
                     <summary class="category-header">
@@ -316,32 +382,6 @@
                     </div>
                 </details>
                 {% endfor %}
-                {% endif %}
-
-                {% if m.income_transactions %}
-                <h3 class="section-title" style="margin-top: 24px;">💰 Income</h3>
-                <details class="category-card nested">
-                    <summary class="category-header">
-                        <span>💰 Total income</span>
-                        <span class="amount income-amount">₪{{ "{:,.2f}".format(m.income) }}</span>
-                    </summary>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr><th>Date</th><th>Description</th><th>Amount</th></tr>
-                            </thead>
-                            <tbody>
-                                {% for tx in m.income_transactions %}
-                                <tr>
-                                    <td>{{ tx.date.strftime('%d.%m.%Y') }}</td>
-                                    <td>{{ tx.description }}</td>
-                                    <td class="amount income-amount">₪{{ "{:,.2f}".format(tx.credit) }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </details>
                 {% endif %}
             </div>
         </details>

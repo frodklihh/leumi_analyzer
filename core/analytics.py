@@ -1,259 +1,247 @@
-"""
-core/analytics.py - pure data calculations and aggregations
-"""
-
-from collections import defaultdict
-from contextlib import closing
-from dataclasses import dataclass, field
 from datetime import datetime
-
+from dataclasses import dataclass, field
 from importer import Transaction
 from core.period import billing_month
 
-
 UNKNOWN_CATEGORY = "❓ Other"
 
+FEE_KEYWORDS = [
+    "עמלה", "עמלת", "עמלות", "דמי ניהול", "מסלול בסיסי",
+    "עמ.הקצאת אשראי", "עמל.ערוץ יש", "דמי כרטיס"
+]
+
 
 @dataclass
-class CategoryBreakdown:
-    """Spending data for a single category."""
+class CategorySummary:
     name: str
     total: float
-    transactions: list[Transaction] = field(default_factory=list)
+    transactions: list[Transaction]
 
 
 @dataclass
-class MonthlyBreakdown:
-    """Aggregated data for one billing month."""
-    year: int
-    month: int
+class MonthSummary:
     label: str
     income: float
     expenses: float
     net: float
-    categories: list[CategoryBreakdown] = field(default_factory=list)
-    income_transactions: list[Transaction] = field(default_factory=list)
+    categories: list[CategorySummary]
+
 
 @dataclass
 class ReportData:
-    """All data needed to render a report."""
     period_label: str
-    year: int | None
-    month: int | None
+
+    # Bank facts
     opening_balance: float
     closing_balance: float
-    balance_change: float   # 👈 ADD THIS
+    balance_change: float
+
+    # Real picture
     total_income: float
     total_expenses: float
-    net: float
-    categories: list[CategoryBreakdown]
-    income_transactions: list[Transaction]
-    monthly_breakdown: list[MonthlyBreakdown]
+    real_net: float
 
+    # Pending
+    pending_cc: float
+    pending_transactions: list[Transaction]
 
-# ── Filtering ─────────────────────────────────────────────────────────────────
-
-def filter_transactions(
-    transactions: list[Transaction],
-    year: int | None = None,
-    month: int | None = None,
-    cutoff_day: int = 16,
-) -> list[Transaction]:
-    """Filter by billing year/month (16th-to-15th cycle)."""
-    result = transactions
-    if year:
-        result = [tx for tx in result if billing_month(tx.date, cutoff_day).year == year]
-    if month:
-        result = [tx for tx in result if billing_month(tx.date, cutoff_day).month == month]
-    return result
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _is_card_payment(tx: Transaction) -> bool:
-    """Detect bank transactions that are credit card payments."""
-    desc = tx.description.lower()
-    markers = ["ויזה", "כרטיסי אשראי", "ישראכרט", "max", "cal", "מקס", "כאל"]
-    return any(m in desc for m in markers)
-
-
-def combined_spending(
-    bank_transactions: list[Transaction],
-    card_transactions: list[Transaction],
-) -> dict[str, list[Transaction]]:
-    """Merge bank + card transactions by category, excluding card payments."""
-    by_category: dict[str, list[Transaction]] = defaultdict(list)
-
-    for tx in bank_transactions:
-        if tx.debit > 0 and not _is_card_payment(tx):
-            by_category[tx.category].append(tx)
-
-    for tx in card_transactions:
-        if tx.debit > 0:
-            by_category[tx.category].append(tx)
-
-    return by_category
-
-
-def _compute_balances(bank_transactions: list[Transaction]) -> tuple[float, float]:
-    """Compute opening and closing balance for the period."""
-    if not bank_transactions:
-        return 0.0, 0.0
-
-    min_date = min(tx.date for tx in bank_transactions)
-    max_date = max(tx.date for tx in bank_transactions)
-
-    # On a single day, first transaction (by row order) has the HIGHEST balance,
-    # since each subsequent transaction reduces it.
-    first_day = [tx for tx in bank_transactions if tx.date == min_date]
-    first_tx = min(first_day, key=lambda t: t.balance)
-    opening = first_tx.balance
-
-    # Closing = lowest balance on the last day (the last transaction of the day)
-    last_day = [tx for tx in bank_transactions if tx.date == max_date]
-    closing = min(last_day, key=lambda t: t.balance).balance
-
-    return opening, closing
-
-
-@dataclass
-class MonthlyBreakdown:
-    """Aggregated data for one billing month."""
-    year: int
-    month: int
-    label: str
-    income: float
-    expenses: float
-    net: float
-    categories: list[CategoryBreakdown] = field(default_factory=list)
+    categories: list[CategorySummary] = field(default_factory=list)
     income_transactions: list[Transaction] = field(default_factory=list)
+    monthly_breakdown: list[MonthSummary] = field(default_factory=list)
 
-# ── Main entry: build the full report data ───────────────────────────────────
+
+def filter_transactions(transactions: list[Transaction], year: int = None, month: int = None) -> list[Transaction]:
+    filtered = []
+    for tx in transactions:
+        if year and tx.date.year != year:
+            continue
+        if month and tx.date.month != month:
+            continue
+        filtered.append(tx)
+    return filtered
+
+
+def is_credit_card_settlement(tx: Transaction) -> bool:
+    """Bank line that pays off the credit card (one lump sum)."""
+    if tx.source != "bank" or tx.debit == 0:
+        return False
+
+    desc = tx.description.lower()
+    if "דמי כרטיס" in desc or "עמלת כרטיס" in desc:
+        return False
+
+    cc_keywords = [
+        "חיוב כרטיס", "חיוב כרטיסי", "כרטיסי אשראי", "כרטיס אשראי", "חיובי כרטיס",
+        "לאומי קארד", "ישראכרט", "מקס", "כאל", "אמקס", "אמריקן אקספרס", "מסטרקארד",
+        "leumi card", "isracard", "max", "cal", "visa", "ויזה", "mastercard", "amex",
+        "הוראת קבע מקס", "הוראת קבע ישראכרט", "חיובי קרדיט"
+    ]
+    return any(kw in desc for kw in cc_keywords)
+
+
+def is_bank_fee(tx: Transaction) -> bool:
+    """Bank service fees (card fee, account maintenance, etc)."""
+    if tx.source != "bank" or tx.debit == 0:
+        return False
+    return any(kw in tx.description for kw in FEE_KEYWORDS)
+
 
 def build_report(
-    bank_transactions: list[Transaction],
-    card_transactions: list[Transaction],
-    year: int | None = None,
-    month: int | None = None,
+    bank_txs_all: list[Transaction],
+    card_txs_all: list[Transaction],
+    year: int = None,
+    month: int = None,
 ) -> ReportData:
-    """Aggregate all data needed for the report. No side effects."""
-    from core.period import period_label
+    # Filtered = for the reporting period (income/expenses/categories)
+    bank_txs = filter_transactions(bank_txs_all, year=year, month=month)
+    card_txs = filter_transactions(card_txs_all, year=year, month=month)
 
-    by_category = combined_spending(bank_transactions, card_transactions)
+    # ----- Opening / closing balance (uses filtered period) -----
+    if bank_txs:
+        newest_first = True
+        for i in range(len(bank_txs) - 1):
+            tx_first = bank_txs[i]
+            tx_second = bank_txs[i + 1]
+            if abs(tx_first.balance - (tx_second.balance + tx_first.credit - tx_first.debit)) < 0.01:
+                if tx_first.credit != 0 or tx_first.debit != 0:
+                    newest_first = True
+                    break
+            if abs(tx_second.balance - (tx_first.balance + tx_second.credit - tx_second.debit)) < 0.01:
+                if tx_second.credit != 0 or tx_second.debit != 0:
+                    newest_first = False
+                    break
 
-    categories = []
-    for cat_name, txs in sorted(
-        by_category.items(),
-        key=lambda x: sum(t.debit for t in x[1]),
-        reverse=True,
-    ):
-        total = sum(tx.debit for tx in txs)
-        if total > 0:
-            categories.append(CategoryBreakdown(
-                name=cat_name,
-                total=total,
-                transactions=sorted(txs, key=lambda t: t.debit, reverse=True),
+        indexed_bank = list(enumerate(bank_txs))
+        if newest_first:
+            indexed_bank.sort(key=lambda x: (x[1].date, -x[0]))
+        else:
+            indexed_bank.sort(key=lambda x: (x[1].date, x[0]))
+
+        sorted_bank = [tx for _, tx in indexed_bank]
+        opening_balance = sorted_bank[0].balance - sorted_bank[0].credit + sorted_bank[0].debit
+        closing_balance = sorted_bank[-1].balance
+    else:
+        opening_balance = closing_balance = 0.0
+
+    balance_change = closing_balance - opening_balance
+
+    # ----- Split bank txs: settlements / fees / regular -----
+    regular_bank_txs = []
+    cc_settlements_total = 0.0
+    bank_fee_txs = []
+
+    for tx in bank_txs:
+        if is_credit_card_settlement(tx):
+            cc_settlements_total += tx.debit
+        elif is_bank_fee(tx):
+            bank_fee_txs.append(tx)
+            regular_bank_txs.append(tx)
+        else:
+            regular_bank_txs.append(tx)
+
+    # ----- Total expenses -----
+    total_income = sum(tx.credit for tx in bank_txs if tx.credit > 0)
+    bank_expenses_total = sum(tx.debit for tx in regular_bank_txs if tx.debit > 0)
+    card_expenses_total = sum(tx.debit for tx in card_txs if tx.debit > 0)
+    total_expenses = bank_expenses_total + card_expenses_total
+
+    real_net = total_income - total_expenses
+
+    # ----- Pending: ALWAYS computed against full data, not filtered -----
+    settlement_billing_months = set()
+    for tx in bank_txs_all:
+        if is_credit_card_settlement(tx):
+            bm = billing_month(tx.date)
+            settlement_billing_months.add((bm.year, bm.month))
+
+    last_settled = max(settlement_billing_months) if settlement_billing_months else None
+
+    pending_card_txs = []
+    for tx in card_txs_all:
+        bm = billing_month(tx.date)
+        tx_billing = (bm.year, bm.month)
+        if last_settled is None or tx_billing > last_settled:
+            pending_card_txs.append(tx)
+
+    pending_fees = []
+    if last_settled is not None:
+        for tx in bank_txs_all:
+            if is_bank_fee(tx):
+                bm = billing_month(tx.date)
+                if (bm.year, bm.month) > last_settled:
+                    pending_fees.append(tx)
+
+    pending_cc = sum(tx.debit for tx in pending_card_txs) + sum(tx.debit for tx in pending_fees)
+    pending_list = sorted(pending_card_txs + pending_fees, key=lambda x: x.date, reverse=True)
+
+    # ----- Categories (bank regular + cards) -----
+    all_expenses = [tx for tx in regular_bank_txs + card_txs if tx.debit > 0]
+
+    categories_map: dict[str, list[Transaction]] = {}
+    for tx in all_expenses:
+        categories_map.setdefault(tx.category, []).append(tx)
+
+    categories_summary = []
+    for cat_name, txs in categories_map.items():
+        categories_summary.append(CategorySummary(
+            name=cat_name,
+            total=sum(tx.debit for tx in txs),
+            transactions=sorted(txs, key=lambda x: x.date, reverse=True)
+        ))
+    categories_summary.sort(key=lambda x: x.total, reverse=True)
+
+    # ----- Monthly breakdown (only when not filtering by single month) -----
+    monthly_breakdown = []
+    if month is None:
+        all_transactions = regular_bank_txs + card_txs
+        months_map: dict[str, list[Transaction]] = {}
+        for tx in all_transactions:
+            key = tx.date.strftime("%Y-%m")
+            months_map.setdefault(key, []).append(tx)
+
+        for yyyymm in sorted(months_map.keys(), reverse=True):
+            m_txs = months_map[yyyymm]
+            m_label = datetime.strptime(yyyymm, "%Y-%m").strftime("%B %Y")
+
+            m_expenses = [tx for tx in m_txs if tx.debit > 0]
+            m_income = [tx for tx in m_txs if tx.credit > 0 and tx.source != "credit_card"]
+            m_total_income = sum(tx.credit for tx in m_income)
+            m_total_expenses = sum(tx.debit for tx in m_expenses)
+
+            m_cat_map: dict[str, list[Transaction]] = {}
+            for tx in m_expenses:
+                m_cat_map.setdefault(tx.category, []).append(tx)
+
+            m_categories = []
+            for c_name, c_txs in m_cat_map.items():
+                m_categories.append(CategorySummary(
+                    name=c_name,
+                    total=sum(tx.debit for tx in c_txs),
+                    transactions=sorted(c_txs, key=lambda x: x.date, reverse=True)
+                ))
+            m_categories.sort(key=lambda x: x.total, reverse=True)
+
+            monthly_breakdown.append(MonthSummary(
+                label=m_label,
+                income=m_total_income,
+                expenses=m_total_expenses,
+                net=m_total_income - m_total_expenses,
+                categories=m_categories
             ))
 
-    total_income = sum(
-        tx.credit for tx in bank_transactions
-        if tx.credit == tx.credit and tx.credit > 0
-    )
-    
-    total_expenses = sum(cat.total for cat in categories)
-    opening, closing = _compute_balances(bank_transactions)
-    balance_change = closing - opening
-    net = total_income - total_expenses
-    cashflow = closing - opening
-
-    income_txs = sorted(
-        [tx for tx in bank_transactions if tx.credit == tx.credit and tx.credit > 0],
-        key=lambda t: t.credit,
-        reverse=True,
-    )
-
-    # Monthly breakdown is only meaningful when not filtering to a single month
-    monthly = _monthly_breakdown(bank_transactions, card_transactions) if not month else []
+    period_label = f"{month:02d}/{year}" if year and month else (f"Year {year}" if year else "All Time")
 
     return ReportData(
-        period_label=period_label(year, month),
-        year=year,
-        month=month,
-        opening_balance=opening,
-        closing_balance=closing,
-        balance_change=balance_change,  # или balance_change
+        period_label=period_label,
+        opening_balance=opening_balance,
+        closing_balance=closing_balance,
+        balance_change=balance_change,
         total_income=total_income,
         total_expenses=total_expenses,
-        net=net,
-        categories=categories,
-        income_transactions=income_txs,
-        monthly_breakdown=monthly,
+        real_net=real_net,
+        pending_cc=pending_cc,
+        pending_transactions=pending_list,
+        categories=categories_summary,
+        income_transactions=sorted([tx for tx in bank_txs if tx.credit > 0], key=lambda x: x.date, reverse=True),
+        monthly_breakdown=monthly_breakdown
     )
-
-
-def _monthly_breakdown(
-    bank_transactions: list[Transaction],
-    card_transactions: list[Transaction],
-    cutoff_day: int = 16,
-) -> list[MonthlyBreakdown]:
-    """Break down income and expenses by billing month, with full category detail."""
-    # Group transactions by billing month
-    by_month: dict[tuple[int, int], dict] = defaultdict(
-        lambda: {"bank": [], "card": []}
-    )
-
-    for tx in bank_transactions:
-        bm = billing_month(tx.date, cutoff_day)
-        by_month[(bm.year, bm.month)]["bank"].append(tx)
-
-    for tx in card_transactions:
-        bm = billing_month(tx.date, cutoff_day)
-        by_month[(bm.year, bm.month)]["card"].append(tx)
-
-    months_names = [
-        "", "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    ]
-
-    result = []
-    for (year, month) in sorted(by_month.keys(), reverse=True):
-        bank_txs = by_month[(year, month)]["bank"]
-        card_txs = by_month[(year, month)]["card"]
-
-        # Categories for this month
-        cat_dict = combined_spending(bank_txs, card_txs)
-        categories = []
-        for cat_name, txs in sorted(
-            cat_dict.items(),
-            key=lambda x: sum(t.debit for t in x[1]),
-            reverse=True,
-        ):
-            total = sum(tx.debit for tx in txs)
-            if total > 0:
-                categories.append(CategoryBreakdown(
-                    name=cat_name,
-                    total=total,
-                    transactions=sorted(txs, key=lambda t: t.debit, reverse=True),
-                ))
-
-        # Income for this month
-        income_txs = sorted(
-            [tx for tx in bank_txs if tx.credit == tx.credit and tx.credit > 0],
-            key=lambda t: t.credit,
-            reverse=True,
-        )
-        income = sum(tx.credit for tx in income_txs)
-        expenses = sum(cat.total for cat in categories)
-
-        result.append(MonthlyBreakdown(
-            year=year,
-            month=month,
-            label=f"{months_names[month]} {year}",
-            income=income,
-            expenses=expenses,
-            net=income - expenses,
-            categories=categories,
-            income_transactions=income_txs,
-        ))
-
-    return result

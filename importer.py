@@ -29,7 +29,6 @@ def _parse_amount(s) -> float:
     """Convert '₪5,403.92' or NaN to a float."""
     if s is None:
         return 0.0
-    # Handle pandas/numpy NaN
     try:
         if isinstance(s, float) and math.isnan(s):
             return 0.0
@@ -42,11 +41,7 @@ def _parse_amount(s) -> float:
         return float(cleaned)
     except ValueError:
         return 0.0
-<<<<<<< HEAD
     
-=======
-
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
 
 def parse_leumi_xls(path: str | Path) -> list[Transaction]:
     """Parse Leumi .xls (HTML) bank statement."""
@@ -91,50 +86,67 @@ def parse_leumi_xls(path: str | Path) -> list[Transaction]:
     return transactions
 
 
-<<<<<<< HEAD
-def parse_leumi_credit_card(path: str | Path) -> list[Transaction]:
-    """Parse Leumi credit card transactions xlsx.
-
-    Column layout (header on row 1):
-        0: date, 1: merchant name, 2: amount, 3: card, ...
-=======
 def parse_leumi_bank_xlsx(path: str | Path) -> list[Transaction]:
-    """Parse Leumi bank statement in xlsx format.
-
-    Column layout (header on row 1):
-        0: balance, 1: debit, 2: nan, 3: credit, 4: nan, 5: description, 6: date
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
+    """Parse Leumi bank statement exported as .xlsx.
+    
+    Dynamically locates the header row since Leumi exports include 
+    metadata rows at the top of the file.
     """
     import pandas as pd
 
-    df = pd.read_excel(path, header=1)
-<<<<<<< HEAD
-=======
-    transactions = []
+    # Step 1: Find which row contains the actual table headers
+    df_raw = pd.read_excel(path, header=None)
+    header_row_idx = 4  # Default fallback row
 
+    for idx, row in df_raw.iterrows():
+        row_str = " ".join(str(v) for v in row.values)
+        if "תאריך" in row_str and ("יתרה" in row_str or "חובה" in row_str):
+            header_row_idx = idx
+            break
+
+    # Step 2: Reload the file with the correct header row
+    df = pd.read_excel(path, header=header_row_idx)
+    df.columns = [str(c).strip() for c in df.columns]
+
+    # Map typical Hebrew column names used by Bank Leumi
+    date_col = next((c for c in df.columns if "תאריך" in c), df.columns[0])
+    desc_col = next((c for c in df.columns if "תיאור" in c), df.columns[2] if len(df.columns) > 2 else df.columns[1])
+    ref_col = next((c for c in df.columns if "אסמכתא" in c), None)
+    debit_col = next((c for c in df.columns if "חובה" in c), None)
+    credit_col = next((c for c in df.columns if "זכות" in c), None)
+    balance_col = next((c for c in df.columns if "יתרה" in c), None)
+
+    transactions = []
     for _, row in df.iterrows():
         try:
-            date_raw = row.iloc[6]
-            description = str(row.iloc[5]).strip()
-            debit_raw = row.iloc[1]
-            credit_raw = row.iloc[3]
-            balance_raw = row.iloc[0]
-
-            if str(date_raw) == "nan" or description == "nan":
+            date_raw = row[date_col]
+            if pd.isna(date_raw) or str(date_raw).strip() == "" or "תאריך" in str(date_raw):
                 continue
 
-            date = pd.to_datetime(date_raw).to_pydatetime().replace(tzinfo=None)
+            if isinstance(date_raw, datetime):
+                date = date_raw
+            else:
+                date = pd.to_datetime(date_raw, dayfirst=True).to_pydatetime()
+
+            description = str(row[desc_col]).strip() if desc_col in row and not pd.isna(row[desc_col]) else ""
+            if not description or description.lower() == "nan":
+                continue
+
+            reference = str(row[ref_col]).strip() if ref_col and ref_col in row and not pd.isna(row[ref_col]) else ""
+            debit = _parse_amount(row[debit_col]) if debit_col and debit_col in row else 0.0
+            credit = _parse_amount(row[credit_col]) if credit_col and credit_col in row else 0.0
+            balance = _parse_amount(row[balance_col]) if balance_col and balance_col in row else 0.0
 
             transactions.append(Transaction(
-                date=date,
+                date=date.replace(tzinfo=None),
                 description=description,
-                reference="",
-                debit=_parse_amount(debit_raw),
-                credit=_parse_amount(credit_raw),
-                balance=_parse_amount(balance_raw),
+                reference=reference,
+                debit=debit,
+                credit=credit,
+                balance=balance,
                 source="bank",
             ))
-        except (ValueError, TypeError):
+        except Exception:
             continue
 
     return transactions
@@ -149,7 +161,6 @@ def parse_leumi_credit_card(path: str | Path) -> list[Transaction]:
     import pandas as pd
 
     df = pd.read_excel(path, header=1)
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     transactions = []
 
     for _, row in df.iterrows():
@@ -186,7 +197,6 @@ def load_file(path: str | Path) -> list[Transaction]:
     path = Path(path)
 
     if path.suffix.lower() == ".xlsx":
-<<<<<<< HEAD
         # Peek at first rows to detect format
         df = pd.read_excel(path, header=None, nrows=5)
         all_text = " ".join(str(v) for row in df.itertuples(index=False) for v in row)
@@ -194,13 +204,6 @@ def load_file(path: str | Path) -> list[Transaction]:
         # Bank statements contain these markers anywhere in the header area
         bank_markers = ["יתרה", "חובה", "תנועות בחשבון", "מסגרת האשראי"]
         if any(m in all_text for m in bank_markers):
-=======
-        # Peek at row 1 to detect which xlsx format
-        df = pd.read_excel(path, header=None, nrows=2)
-        second_row = str(df.iloc[1, 0]) if len(df) > 1 else ""
-
-        if "יתרה" in second_row or "חובה" in second_row:
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
             return parse_leumi_bank_xlsx(path)
         else:
             return parse_leumi_credit_card(path)

@@ -21,6 +21,13 @@ MERCHANT_ALIASES = {
 
 
 CATEGORIES: dict[str, list[str]] = {
+    "🏦 Bank Fees & Commissions": [
+        "מסלול בסיסי", "מסלול מורחב", "עמ.הקצאת אשראי", "עמלת הקצאת", "דמי ניהול", 
+        "דמי כרטיס", "עמלת כרטיס", "עמל.ערוץ יש", "עמלה", "עמלות", "עמל.", "עמלת",
+        "ריבית חובה", "חיובי ריבית", "חיוב ריבית", "עמלת מינימום", "עמלת חליפין", 
+        "עמלת טיפול", "עמ.פקיד", "עמלת פקיד"
+    ],
+
     "🏠 House & Billing": [
         # Rent & checks to landlord
         "שכירות",
@@ -30,47 +37,33 @@ CATEGORIES: dict[str, list[str]] = {
         "חשמל", "חברת חשמל", "מים", "גז",
         # Home internet & cable
         "בזק", "הוט", "013", "019",
-        # Bank service fees
-        "מסלול בסיסי", "עמ.הקצאת אשראי", "דמי ניהול",
         # Government housing
         "עמידר", "חלמיש", "דיור ציבורי",
     ],
 
     "💸 Transactions": [
-    "העברה", "העברת",  # transfers (without דיגיטל - that's rent)
-    "ז.בנק", "ז. בנק",  # bank transfers
-<<<<<<< HEAD
-    "הע. אינטרנטית", "העברה אינטרנטית",  # online transfers
-=======
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
-],
+        "העברה", "העברת",  # transfers (without דיגיטל - that's rent)
+        "ז.בנק", "ז. בנק",  # bank transfers
+        "הע. אינטרנטית", "העברה אינטרנטית",  # online transfers
+    ],
 
     "🍎 Groceries": [
         "שופרסל", "רמי לוי", "מגה", "ויקטורי", "יינות ביתן", "אושר עד",
         "מחסני השוק", "קרפור", "am:pm", "טיב טעם", "קשת טעמים",
         "שוק פייסל", "החמניה", "שלי", "ירקות", "פירות",
-<<<<<<< HEAD
         "ספיד","פרישוק", "סינמטק ראש פינה",
         "מקור הפיצוחים בעמ",   # ספיד בראשית - local grocery
         "דהן מרקט",
-=======
-        "ספיד","פרישוק", "סינמטק ראש פינה"  # ספיד בראשית - local grocery
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "🍽️ Restaurants & Cafes": [
         "וולט", "wolt", "10bis", "מסעדה", "קפה", "פיצה", "סושי",
         "המבורגר", "פלאפל", "מקדונלד", "ארומה", "דיווין", "איזי פאף",
         "שווארמה", "גלידה", "מאפה", "מאפייה", "הלב הכחול",
-<<<<<<< HEAD
         "מנדרין","מסעדת אמבר", "מסעדת טורקיז", "מסעדת בראון", "מסעדת ג'ויה",
         "גרג אודיטוריום", "גרג קניון", "גרג קרית אתא", "גרג קרית ביאליק",
         "י.ע.ל בני ציון", "י.ע.ל קרית אתא", "י.ע.ל קרית ביאליק","PAYPAL *CAFEKINNERE",
         "מסעדת אמרטי",
-
-=======
-        "מנדרין",
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "🚗 Transport": [
@@ -110,20 +103,11 @@ CATEGORIES: dict[str, list[str]] = {
     ],
 
     "💳 Subscriptions & Monthly Bills": [
-        # Credit card fees
-        "דמי כרטיס", "עמלת כרטיס",
-        # Bank fees
-        "עמלה", "עמל.ערוץ יש", "עמלות",
-        # Loans
-        "פרעון הלוואה", "הלוואה", "משכנתא", "ריבית",
         # Streaming
         "netflix", "spotify", "apple tv", "disney", "youtube",
         # Phone carriers
         "סלקום", "פרטנר", "פלאפון", "גולן טלקום",
-<<<<<<< HEAD
         "מרכז לבריאות השיער",
-=======
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "🛍️ Shopping & Clothing": [
@@ -132,11 +116,7 @@ CATEGORIES: dict[str, list[str]] = {
         "ikea", "ace", "we shose", "נעליים", "ביגוד",
         "הום סנטר",
         "ביג מקס", "מקס סטוק",
-<<<<<<< HEAD
         "Temu.com", "זול סטוק קרית מוצקין",
-
-=======
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "🐾 Pets": [
@@ -148,23 +128,14 @@ CATEGORIES: dict[str, list[str]] = {
     ],
 
     "🎬 Entertainment": [
-<<<<<<< HEAD
         "קולנוע", "תיאטרון", "כרטיסים","אתדגיס אור ד.ג. בע''מ", "סינמה סיטי", "יס פלאנט",
-          "סינמטק", "בארד פרודקשנס-יציל", "רשות הטבע והגנים ציפורים", "רשות הטבע והגנים הר הכרמל", 
-          "רשות הטבע והגנים - מבצר נמרוד",
-=======
-        "קולנוע", "תיאטרון", "כרטיסים",
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
+        "סינמטק", "בארד פרודקשנס-יציל", "רשות הטבע והגנים ציפורים", "רשות הטבע והגנים הר הכרמל", 
+        "רשות הטבע והגנים - מבצר נמרוד",
     ],
 
     "✈️ Travel": [
         "booking", "airbnb", "ryanair", "wizz", "easyjet", "אל על",
-<<<<<<< HEAD
         "מלון", "טיסה","רשות הטבע והגנים יחיעם", "רשות הטבע והגנים חוף אכזיב",
-
-=======
-        "מלון", "טיסה",
->>>>>>> 4076023 (Add categorization and reporting modules; implement transaction parsing and HTML report generation)
     ],
 
     "💰 Income": [
@@ -232,7 +203,6 @@ def _is_rent_check(tx: Transaction) -> bool:
         return False
     return abs(tx.debit - RENT_AMOUNT) <= RENT_TOLERANCE
 
-
 def categorize(transactions: list[Transaction]) -> list[Transaction]:
     """Assign a category to every transaction."""
     for tx in transactions:
@@ -244,7 +214,7 @@ def categorize(transactions: list[Transaction]) -> list[Transaction]:
         # Special rule: other checks and transfers go to Transactions
         if tx.description.strip() in ("שיק", "העברה דיגיטל"):
             tx.category = "💸 Transactions"
-            continue
+            continue  # <-- ДОБАВЛЕНО: теперь код перейдет к следующей итерации
 
         category = _match_keywords(tx.description)
         tx.category = category if category else UNKNOWN_CATEGORY

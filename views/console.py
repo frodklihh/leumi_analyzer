@@ -8,16 +8,26 @@ from importer import Transaction
 
 def print_summary(report: ReportData) -> None:
     """Print the overall summary block."""
-    sign = "+" if report.net >= 0 else "-"
+    balance_sign = "+" if report.balance_change >= 0 else "-"
+    net_sign = "+" if report.real_net >= 0 else "-"
 
     print("\n" + "═" * 52)
     print(f"  ACCOUNT SUMMARY - {report.period_label}")
     print("═" * 52)
-    print(f"\n  Opening balance:  ₪{report.opening_balance:>10,.2f}")
+
+    print("\n  📊 Account movement")
+    print(f"  Opening balance:  ₪{report.opening_balance:>10,.2f}")
     print(f"  Closing balance:  ₪{report.closing_balance:>10,.2f}")
+    print(f"  Δ Balance:        {balance_sign}₪{abs(report.balance_change):>9,.2f}")
+
+    print("\n  💰 Real picture")
     print(f"  Total income:     ₪{report.total_income:>10,.2f}")
-    print(f"  Total expenses:   ₪{report.total_expenses:>10,.2f}")
-    print(f"  Net change:       {sign}₪{abs(report.net):>9,.2f}")
+    print(f"  Real expenses:    ₪{report.total_expenses:>10,.2f}")
+    print(f"  Real net:         {net_sign}₪{abs(report.real_net):>9,.2f}")
+
+    if report.pending_cc > 0:
+        print("\n  ⏳ Pending")
+        print(f"  Will be charged:  ₪{report.pending_cc:>10,.2f}")
 
 
 def print_categories(report: ReportData) -> None:
