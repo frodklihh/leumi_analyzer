@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Excel temporary files
+~$*
+
+# Generated reports / outputs
+reports/
+output/
+report.html
+
+# OS
+.DS_Store
+Thumbs.db
