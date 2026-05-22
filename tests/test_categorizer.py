@@ -99,14 +99,11 @@ class TestCategorize:
         sample_transactions,
     ):
         result = categorize(sample_transactions)
+        categories = [tx.category for tx in result]
 
-        categories = [
-            tx.category for tx in result
-        ]
-
-        assert "🍽️ Restaurants & Cafes" in categories
-        assert "🍎 Groceries" in categories
+        assert "🏥 Health & Medical" in categories
         assert "💰 Income" in categories
+        assert "💳 Subscriptions & Monthly Bills" in categories
 
     def test_unknown_to_other(
         self,
