@@ -42,7 +42,7 @@ def _parse_amount(s) -> float:
         return float(cleaned)
     except ValueError:
         return 0.0
-
+    
 
 def parse_leumi_xls(path: str | Path) -> list[Transaction]:
     """Parse Leumi .xls (HTML) bank statement."""
@@ -57,6 +57,7 @@ def parse_leumi_xls(path: str | Path) -> list[Transaction]:
     if not tables:
         return []
 
+    # Last table contains transaction data
     data_table = tables[-1]
     rows = data_table.find_all("tr")
     transactions = []
@@ -81,45 +82,6 @@ def parse_leumi_xls(path: str | Path) -> list[Transaction]:
                 source="bank",
             ))
         except (ValueError, IndexError):
-            continue
-
-    return transactions
-
-
-def parse_leumi_bank_xlsx(path: str | Path) -> list[Transaction]:
-    """Parse Leumi bank statement in xlsx format.
-
-    Column layout (header on row 1):
-        0: balance, 1: debit, 2: nan, 3: credit, 4: nan, 5: description, 6: date
-    """
-    import pandas as pd
-
-    df = pd.read_excel(path, header=1)
-    transactions = []
-
-    for _, row in df.iterrows():
-        try:
-            date_raw = row.iloc[6]
-            description = str(row.iloc[5]).strip()
-            debit_raw = row.iloc[1]
-            credit_raw = row.iloc[3]
-            balance_raw = row.iloc[0]
-
-            if str(date_raw) == "nan" or description == "nan":
-                continue
-
-            date = pd.to_datetime(date_raw).to_pydatetime().replace(tzinfo=None)
-
-            transactions.append(Transaction(
-                date=date,
-                description=description,
-                reference="",
-                debit=_parse_amount(debit_raw),
-                credit=_parse_amount(credit_raw),
-                balance=_parse_amount(balance_raw),
-                source="bank",
-            ))
-        except (ValueError, TypeError):
             continue
 
     return transactions
@@ -170,11 +132,13 @@ def load_file(path: str | Path) -> list[Transaction]:
     path = Path(path)
 
     if path.suffix.lower() == ".xlsx":
-        # Peek at row 1 to detect which xlsx format
-        df = pd.read_excel(path, header=None, nrows=2)
-        second_row = str(df.iloc[1, 0]) if len(df) > 1 else ""
+        # Peek at first rows to detect format
+        df = pd.read_excel(path, header=None, nrows=5)
+        all_text = " ".join(str(v) for row in df.itertuples(index=False) for v in row)
 
-        if "יתרה" in second_row or "חובה" in second_row:
+        # Bank statements contain these markers anywhere in the header area
+        bank_markers = ["יתרה", "חובה", "תנועות בחשבון", "מסגרת האשראי"]
+        if any(m in all_text for m in bank_markers):
             return parse_leumi_bank_xlsx(path)
         else:
             return parse_leumi_credit_card(path)
