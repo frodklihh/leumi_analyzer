@@ -5,8 +5,8 @@ core/period.py - billing month logic
 from datetime import datetime
 
 
-def billing_month(date: datetime, cutoff_day: int = 15) -> datetime:
-    """Map a date to its billing month (15th-to-15th cycle).
+def billing_month(date: datetime, cutoff_day: int = 16) -> datetime:
+    """Map a date to its billing month (16th-to-15th cycle).
 
     Dates on/after cutoff_day belong to the NEXT calendar month.
     Returns a datetime pinned to the 1st of the billing month.

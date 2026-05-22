@@ -3,6 +3,7 @@ core/analytics.py - pure data calculations and aggregations
 """
 
 from collections import defaultdict
+from contextlib import closing
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -33,7 +34,6 @@ class MonthlyBreakdown:
     categories: list[CategoryBreakdown] = field(default_factory=list)
     income_transactions: list[Transaction] = field(default_factory=list)
 
-
 @dataclass
 class ReportData:
     """All data needed to render a report."""
@@ -42,6 +42,7 @@ class ReportData:
     month: int | None
     opening_balance: float
     closing_balance: float
+    balance_change: float   # 👈 ADD THIS
     total_income: float
     total_expenses: float
     net: float
@@ -56,9 +57,9 @@ def filter_transactions(
     transactions: list[Transaction],
     year: int | None = None,
     month: int | None = None,
-    cutoff_day: int = 15,
+    cutoff_day: int = 16,
 ) -> list[Transaction]:
-    """Filter by billing year/month (15th-to-15th cycle)."""
+    """Filter by billing year/month (16th-to-15th cycle)."""
     result = transactions
     if year:
         result = [tx for tx in result if billing_month(tx.date, cutoff_day).year == year]
@@ -105,8 +106,8 @@ def _compute_balances(bank_transactions: list[Transaction]) -> tuple[float, floa
     # On a single day, first transaction (by row order) has the HIGHEST balance,
     # since each subsequent transaction reduces it.
     first_day = [tx for tx in bank_transactions if tx.date == min_date]
-    first_tx = max(first_day, key=lambda t: t.balance)
-    opening = first_tx.balance - first_tx.credit + first_tx.debit
+    first_tx = min(first_day, key=lambda t: t.balance)
+    opening = first_tx.balance
 
     # Closing = lowest balance on the last day (the last transaction of the day)
     last_day = [tx for tx in bank_transactions if tx.date == max_date]
@@ -158,10 +159,12 @@ def build_report(
         tx.credit for tx in bank_transactions
         if tx.credit == tx.credit and tx.credit > 0
     )
+    
     total_expenses = sum(cat.total for cat in categories)
-    net = total_income - total_expenses
-
     opening, closing = _compute_balances(bank_transactions)
+    balance_change = closing - opening
+    net = total_income - total_expenses
+    cashflow = closing - opening
 
     income_txs = sorted(
         [tx for tx in bank_transactions if tx.credit == tx.credit and tx.credit > 0],
@@ -178,6 +181,7 @@ def build_report(
         month=month,
         opening_balance=opening,
         closing_balance=closing,
+        balance_change=balance_change,  # или balance_change
         total_income=total_income,
         total_expenses=total_expenses,
         net=net,
@@ -190,7 +194,7 @@ def build_report(
 def _monthly_breakdown(
     bank_transactions: list[Transaction],
     card_transactions: list[Transaction],
-    cutoff_day: int = 15,
+    cutoff_day: int = 16,
 ) -> list[MonthlyBreakdown]:
     """Break down income and expenses by billing month, with full category detail."""
     # Group transactions by billing month

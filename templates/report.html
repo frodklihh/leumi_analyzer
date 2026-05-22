@@ -111,7 +111,6 @@
         .amount { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
         .unknown-section { border: 1px dashed #e63946; }
 
-        /* Monthly sections */
         .month-section {
             background: white;
             border-radius: 12px;
@@ -197,6 +196,12 @@
             <h3>Net Change</h3>
             <div class="value {{ 'income-amount' if report.net >= 0 else 'expense-amount' }}">
                 ₪{{ "{:,.2f}".format(report.net) }}
+            </div>
+        </div>
+        <div class="card">
+            <h3>Balance Change</h3>
+            <div class="value {{ 'income-amount' if report.balance_change >= 0 else 'expense-amount' }}">
+                ₪{{ "{:,.2f}".format(report.balance_change) }}
             </div>
         </div>
         <div class="card">
