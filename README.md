@@ -52,12 +52,15 @@ xdg-open reports/report.html      # Linux
 3. Select your date range
 4. Click **ייצוא לאקסל** (Export to Excel) — save as `.xls`
 
-### Credit card detailed transactions
+### Credit card detailed transactions (from Cal)
 
-1. Go to **כרטיסי אשראי** (Credit cards)
-2. Pick a card → **פירוט עסקאות** (Transaction details)
-3. Select your date range → export to Excel (`.xlsx`)
-4. Repeat for each card you want included
+Leumi-branded credit cards are issued through **Cal** (cal-online.co.il). Detailed transactions are exported from there, not from the Leumi site.
+
+1. Log in to cal-online.co.il
+2. Go to **פירוט עסקאות וזיכויים** (Transactions and credits)
+3. Select your date range
+4. Export to Excel (`.xlsx`)
+5. Repeat for each card you want included
 
 ## Project structure
 
