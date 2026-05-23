@@ -1,131 +1,166 @@
-# leumi-analyzer
+# Leumi Analyzer
 
-Analyze Bank Leumi account statements and credit card transactions. Breaks down spending by category, supports billing-month logic (15th-to-15th cycle), and produces an interactive HTML report with month-by-month drilldown.
+Python CLI tool that analyzes Bank Leumi statements together with Cal credit card exports and produces a clear HTML report with the real financial picture.
 
-## Features
+Built to bridge the gap between what the bank shows you (only settled transactions) and what you actually spent (including pending card charges).
 
-- Parses Leumi `.xls` (HTML) and `.xlsx` bank statements
-- Parses Leumi credit card detailed transactions
-- Supports multiple credit cards in a single report
-- Keyword-based categorization (Hebrew + English)
-- Billing-month logic (15th-to-15th, configurable)
-- Interactive HTML report with expandable categories and monthly breakdown
-- Filter by year and/or month
-- Terminal output for quick checks 
+## What it does
+
+- Parses Bank Leumi (`.xls`) statements and Cal credit card (`.xlsx`) exports
+- Categorizes transactions automatically based on description patterns
+- Detects credit card settlements and excludes them from double-counting
+- Tracks pending card charges that haven't hit the bank yet
+- Tracks past-period charges that got settled during the current period
+- Excludes refunds and bank-fee artifacts from income calculations
+- Handles the 16→15 billing month cycle correctly
+- Generates an interactive HTML report with collapsible sections and tabbed views
+
+## Report sections
+
+### 📊 Account movement
+What actually moved through the bank account during the period.
+
+- **Opening Balance** — balance at the start of the period
+- **Closing Balance** — balance at the end of the period
+- **Δ Balance** — net movement; only reflects what the bank has already settled
+
+### 💰 Real picture
+The full financial picture, including transactions still pending on cards.
+
+- **Total Income** — all credits to the bank account (salary, refunds, transfers)
+- **Real Expenses** — bank expenses (excluding card settlements) + all card transactions from Cal exports
+- **Real Net** — `Total Income − Real Expenses`; the honest period result
+
+### ⏳ Pending charges
+Card purchases not yet reflected in the bank balance.
+
+- **Will be charged soon** — sum of card transactions whose billing month hasn't been settled yet
+
+### 📜 Past period charges *(when applicable)*
+Card purchases from before the period that the bank settled during it.
+
+- **Settled in this period** — explains discrepancies between Δ Balance and Real Net
+
+### The reconciliation
+
+```
+Δ Balance ≈ Real Net − Pending + Past Charges
+```
 
 ## Installation
 
 ```bash
+git clone https://github.com/<user>/leumi-analyzer.git
+cd leumi-analyzer
+python -m venv .venv
+source .venv/bin/activate     # Linux/Mac
+.venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
+Requires Python 3.11+.
+
 ## Usage
 
-```bash
-# Full report for 2026, single card
-python main.py reports/bank_statement.xls reports/card.xlsx --year 2026
+Place exported files into `reports/`:
 
-# Multiple cards (e.g. family accounts)
-python main.py reports/bank_statement.xls reports/card_a.xlsx reports/card_b.xlsx --year 2026
-
-# Filter to a single billing month
-python main.py reports/bank_statement.xls reports/card.xlsx --year 2026 --month 4
-
-# Custom output path
-python main.py reports/bank_statement.xls reports/card.xlsx --year 2026 --output reports/2026.html
+```
+leumi-analyzer/
+└── reports/
+    ├── bank_statement.xls
+    ├── cards_elena.xlsx
+    └── cards_leonid.xlsx
 ```
 
-Open the generated HTML in a browser:
+### Run
 
 ```bash
-start reports/report.html        # Windows
-open reports/report.html          # macOS
-xdg-open reports/report.html      # Linux
+# Full report, all time
+python main.py reports/bank_statement.xls reports/cards_elena.xlsx reports/cards_leonid.xlsx
+
+# Filter by year (uses billing month logic, 16→15)
+python main.py reports/bank_statement.xls reports/cards_elena.xlsx reports/cards_leonid.xlsx --year 2026
+
+# Filter by specific month
+python main.py reports/bank_statement.xls reports/cards_elena.xlsx reports/cards_leonid.xlsx --year 2026 --month 3
+
+# Custom output location
+python main.py reports/bank_statement.xls reports/cards_elena.xlsx --year 2026 --output reports/my_report.html
 ```
 
-## How to export your data from Leumi
+Multiple card files are supported — pass them all as positional arguments.
 
-### Bank statement
+### Output
 
-1. Log in to leumi.co.il
-2. Go to **תנועות בחשבון** (Account movements)
-3. Select your date range
-4. Click **ייצוא לאקסל** (Export to Excel) — save as `.xls`
+- Console summary printed to stdout
+- HTML report saved to `reports/report.html` (or the `--output` path)
 
-### Credit card detailed transactions (from Cal)
+## Where to get the data
 
-Leumi-branded credit cards are issued through **Cal** (cal-online.co.il). Detailed transactions are exported from there, not from the Leumi site.
+### Bank Leumi
 
-1. Log in to cal-online.co.il
-2. Go to **פירוט עסקאות וזיכויים** (Transactions and credits)
-3. Select your date range
-4. Export to Excel (`.xlsx`)
-5. Repeat for each card you want included
+1. Log in to https://www.leumi.co.il
+2. Open **עובר ושב** (checking account)
+3. Select the desired date range
+4. Click **ייצוא** (export) and save the `.xls` file
+
+### Cal credit card
+
+1. Log in to https://www.cal-online.co.il
+2. Go to **פירוט עסקאות וזיכויים** (transaction & refund details)
+3. Select the date range
+4. Download the `.xlsx` file
+
+For multi-cardholder households, download a separate file per card and pass all of them as arguments.
 
 ## Project structure
 
 ```
 leumi-analyzer/
-├── main.py                 # CLI entry point
-├── importer.py             # Leumi .xls / .xlsx parsers
-├── categorizer.py          # Keyword-based categorization
+├── main.py                    # CLI entry point
+├── importer.py                # File parsing (xls/xlsx → Transaction list)
+├── categorizer.py             # Auto-categorization rules
 ├── core/
-│   ├── analytics.py        # Pure data calculations
-│   └── period.py           # Billing-month logic
+│   ├── analytics.py           # Report building, all calculations
+│   └── period.py              # Billing month logic (16→15 cycle)
 ├── views/
-│   ├── console.py          # Terminal output
-│   └── html.py             # HTML rendering via Jinja2
+│   ├── console.py             # Terminal output
+│   └── html.py                # HTML rendering via Jinja2
 ├── templates/
-│   └── report.html         # Jinja2 HTML template
-├── tests/                  # pytest suite
-├── reports/                # Input files & generated reports
-└── requirements.txt
+│   └── report.html            # HTML report template
+├── tests/                     # pytest suite
+└── reports/                   # Input files and generated reports
 ```
 
-## Configuration
+## Key concepts
 
-### Adding or editing categories
+### Billing month (16→15 cycle)
 
-Open `categorizer.py` and edit the `CATEGORIES` dictionary:
+Israeli credit card billing runs from the 16th of one month to the 15th of the next (depends). A purchase made on December 16th belongs to the January billing cycle, not December.
 
-```python
-CATEGORIES = {
-    "🏠 House & Billing": ["שכירות", "ארנונה", "חשמל", ...],
-    "🍎 Groceries": ["שופרסל", "רמי לוי", ...],
-    "🐾 Pets": ["וטרינר", "petshop"],
-}
-```
+The `core/period.py` module implements `billing_month(date)`, and all filtering and grouping use it instead of the calendar month.
 
-Transactions that don't match any keyword land in **❓ Other**. Check that
-section in the report — if you see recurring descriptions there, add their
-keywords to the right category.
+### Credit card settlement detection
 
-### Special rules
+The bank statement shows credit card payments as single lump sums (e.g., "Visa charge: ₪4,500"), while the Cal export details every individual purchase. The analyzer:
 
-- A check (`שיק`) or digital transfer (`העברה דיגיטל`) of approximately
-  ₪4,500 is automatically classified as rent (House & Billing).
-- Other checks and transfers go to the `💸 Transactions` category.
-- Credit card payment lines in the bank statement (`לאומי ויזה`,
-  `כרטיסי אשראי`) are excluded from spending totals to avoid double counting
-  with the detailed card transactions.
+- Detects settlement lines in the bank statement via Hebrew/English keyword matching
+- Excludes them from expense totals to avoid double-counting
+- Uses the difference between settlements and card spending to compute pending
 
-### Billing month
+### Pending vs. settled
 
-The billing month runs from the 15th of one month to the 14th of the next.
-Transactions on or after the 15th of May are billed in June. This matches
-how Leumi credit card cycles work. Change the `cutoff_day` parameter in
-`core/period.py` if you need a different cycle.
+A card transaction is considered **pending** if its billing month is later than the most recent billing month that the bank has settled. This computation always runs against the full dataset, not the filtered period, so "pending" always reflects the current real-world state.
 
-## Running tests
+### Refund handling
+
+Card refunds (Cal entries with `credit > 0`) and their corresponding bank credits (lines containing CC-related keywords with positive credit) are handled to avoid double-counting between the two data sources.
+
+## Testing
 
 ```bash
-pytest tests -v
+pytest
 ```
 
-## Tech stack
+Tests cover parser correctness, categorization rules, billing month logic, and report-building edge cases.
 
-- Python 3.11+
-- pandas + openpyxl for `.xlsx` parsing
-- beautifulsoup4 for Leumi's HTML-disguised `.xls`
-- Jinja2 for HTML templating
-- pytest for tests
