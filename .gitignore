@@ -22,6 +22,9 @@ env/
 # Generated reports / outputs
 output/
 report.html
+bank_statement.xls
+cards_elena.xlsx
+cards_leonid.xlsx
 
 # OS
 .DS_Store
