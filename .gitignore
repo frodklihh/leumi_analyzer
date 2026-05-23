@@ -20,7 +20,6 @@ env/
 ~$*
 
 # Generated reports / outputs
-reports/
 output/
 report.html
 
