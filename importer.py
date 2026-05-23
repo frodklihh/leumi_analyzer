@@ -41,7 +41,15 @@ def _parse_amount(s) -> float:
         return float(cleaned)
     except ValueError:
         return 0.0
-    
+
+
+def _is_refund(description: str) -> bool:
+    refund_words = [
+        "זיכוי", "החזר", "refund", "credit", "rebate", "cashback", "return", "voucher"
+    ]
+    desc_lower = (description or "").lower()
+    return any(word.lower() in desc_lower for word in refund_words)
+
 
 def parse_leumi_xls(path: str | Path) -> list[Transaction]:
     """Parse Leumi .xls (HTML) bank statement."""
@@ -56,14 +64,12 @@ def parse_leumi_xls(path: str | Path) -> list[Transaction]:
     if not tables:
         return []
 
-    # Last table contains transaction data
     data_table = tables[-1]
     rows = data_table.find_all("tr")
     transactions = []
 
     for row in rows:
         cells = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
-
         if len(cells) < 7:
             continue
         if not re.match(r"\d{2}/\d{2}/\d{4}", cells[0]):
@@ -88,15 +94,14 @@ def parse_leumi_xls(path: str | Path) -> list[Transaction]:
 
 def parse_leumi_bank_xlsx(path: str | Path) -> list[Transaction]:
     """Parse Leumi bank statement exported as .xlsx.
-    
-    Dynamically locates the header row since Leumi exports include 
+
+    Dynamically locates the header row since Leumi exports include
     metadata rows at the top of the file.
     """
     import pandas as pd
 
-    # Step 1: Find which row contains the actual table headers
     df_raw = pd.read_excel(path, header=None)
-    header_row_idx = 4  # Default fallback row
+    header_row_idx = 4
 
     for idx, row in df_raw.iterrows():
         row_str = " ".join(str(v) for v in row.values)
@@ -104,11 +109,9 @@ def parse_leumi_bank_xlsx(path: str | Path) -> list[Transaction]:
             header_row_idx = idx
             break
 
-    # Step 2: Reload the file with the correct header row
     df = pd.read_excel(path, header=header_row_idx)
     df.columns = [str(c).strip() for c in df.columns]
 
-    # Map typical Hebrew column names used by Bank Leumi
     date_col = next((c for c in df.columns if "תאריך" in c), df.columns[0])
     desc_col = next((c for c in df.columns if "תיאור" in c), df.columns[2] if len(df.columns) > 2 else df.columns[1])
     ref_col = next((c for c in df.columns if "אסמכתא" in c), None)
@@ -175,12 +178,19 @@ def parse_leumi_credit_card(path: str | Path) -> list[Transaction]:
             date = pd.to_datetime(date_raw).to_pydatetime().replace(tzinfo=None)
             amount = float(str(amount_raw).replace(",", ""))
 
+            if _is_refund(description):
+                debit = 0.0
+                credit = abs(amount)
+            else:
+                debit = amount if amount > 0 else 0.0
+                credit = abs(amount) if amount < 0 else 0.0
+
             transactions.append(Transaction(
                 date=date,
                 description=description,
                 reference="",
-                debit=amount if amount > 0 else 0.0,
-                credit=abs(amount) if amount < 0 else 0.0,
+                debit=debit,
+                credit=credit,
                 balance=0.0,
                 source="credit_card",
             ))
@@ -197,11 +207,9 @@ def load_file(path: str | Path) -> list[Transaction]:
     path = Path(path)
 
     if path.suffix.lower() == ".xlsx":
-        # Peek at first rows to detect format
         df = pd.read_excel(path, header=None, nrows=5)
         all_text = " ".join(str(v) for row in df.itertuples(index=False) for v in row)
 
-        # Bank statements contain these markers anywhere in the header area
         bank_markers = ["יתרה", "חובה", "תנועות בחשבון", "מסגרת האשראי"]
         if any(m in all_text for m in bank_markers):
             return parse_leumi_bank_xlsx(path)
