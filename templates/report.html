@@ -11,8 +11,9 @@
             background: #f4f6f8;
             padding: 24px;
             color: #222;
+            position: relative;
         }
-        h1 { margin-bottom: 8px; font-size: 1.8rem; }
+        h1 { margin-bottom: 8px; font-size: 1.8rem; padding-right: 100px; }
         .subtitle { color: #666; margin-bottom: 32px; font-size: 0.9rem; }
         .period-badge {
             display: inline-block;
@@ -22,6 +23,35 @@
             border-radius: 999px;
             font-weight: 600;
             margin-right: 8px;
+        }
+
+        /* --- Language Switcher Styles --- */
+        .lang-switcher {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            display: flex;
+            gap: 4px;
+            background: #e9ecef;
+            padding: 4px;
+            border-radius: 8px;
+            z-index: 10;
+        }
+        .lang-btn {
+            border: none;
+            background: transparent;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #666;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .lang-btn.active {
+            background: white;
+            color: #4361ee;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .section-label {
@@ -199,10 +229,17 @@
     </style>
 </head>
 <body>
+
+    <!-- Language Selector Buttons -->
+    <div class="lang-switcher">
+        <button id="btn-en" class="lang-btn active" onclick="setLanguage('en')">EN</button>
+        <button id="btn-ru" class="lang-btn" onclick="setLanguage('ru')">RU</button>
+    </div>
+
     <h1>🏦 Leumi Analyzer Report</h1>
     <p class="subtitle">
         <span class="period-badge">📅 {{ report.period_label }}</span>
-        Generated on {{ now }}
+        <span class="generated-text">Generated on</span> {{ now }}
     </p>
 
     <div class="section-label">📊 Account movement</div>
@@ -452,6 +489,151 @@
             document.getElementById(name).classList.add('active');
             e.target.classList.add('active');
         }
+
+        // --- Translation dictionary for standard elements ---
+        const ruTranslations = {
+            "🏦 Leumi Analyzer Report": "🏦 Отчет Leumi Analyzer",
+            "📊 Account movement": "📊 Движение по счету",
+            "💰 Real picture": "💰 Реальная картина",
+            "📜 Past period charges": "📜 Списания прошлых периодов",
+            "⏳ Pending charges": "⏳ Ожидающие списания",
+            "💸 Expenses by category": "💸 Расходы по категориям",
+            "Date": "Дата",
+            "Description": "Описание",
+            "Source": "Источник",
+            "Amount": "Сумма",
+            "💸 Expenses": "💸 Расходы",
+            "💰 Income": "💰 Доходы",
+            "⏳ Pending": "⏳ Ожидают",
+            "📜 Past charges": "📜 Прошлые",
+            "📅 By Month": "📅 По месяцам",
+            "💰 Total income": "💰 Общий доход",
+            "Generated on": "Создано:",
+            "These transactions are not yet reflected in your account balance. Card purchases will be charged on the next billing cycle.": "Эти транзакции еще не отражены в балансе вашего счета. Покупки по картам будут списаны в следующем расчетном цикле.",
+            "⏳ All pending transactions": "⏳ Все ожидающие транзакции",
+            "These are credit card purchases from before this reporting period that the bank actually paid during this period. They explain why the balance change differs from the period's net.": "Это покупки по кредитной карте, совершенные до этого отчетного периода, но фактически оплаченные банком в этом периоде. Они объясняют, почему изменение баланса отличается от чистого результата периода.",
+            "📜 Past period charges paid here": "📜 Списания прошлых периодов (оплачены сейчас)",
+            "No income transactions found.": "Транзакции доходов не найдены.",
+            
+            // Categories
+            "🏦 Bank Fees & Commissions": "🏦 Банковские комиссии",
+            "🏠 House & Billing": "🏠 Дом и счета",
+            "💸 Transactions": "💸 Переводы",
+            "🍎 Groceries": "🍎 Супермаркеты",
+            "🍽️ Restaurants & Cafes": "🍽️ Рестораны и кафе",
+            "🚗 Transport": "🚗 Транспорт",
+            "🚌 Public Transport": "🚌 Общ. транспорт",
+            "🏥 Health & Medical": "🏥 Здоровье и медицина",
+            "💳 Subscriptions & Monthly Bills": "💳 Подписки и счета",
+            "🛍️ Shopping & Clothing": "🛍️ Покупки и одежда",
+            "🏋️ Sport & Fitness": "🏋️ Спорт и фитнес",
+            "🎬 Entertainment": "🎬 Развлечения",
+            "✈️ Travel": "✈️ Путешествия",
+            "❓ Other": "❓ Другое"
+        };
+
+        // --- Specific dictionary for card phrases (supports case-insensitive matching) ---
+        const cardPhrases = {
+            "OPENING BALANCE": "Начальный баланс",
+            "Opening Balance": "Начальный баланс",
+            "CLOSING BALANCE": "Конечный баланс",
+            "Closing Balance": "Конечный баланс",
+            "Δ BALANCE": "Δ Баланса",
+            "Δ Balance": "Δ Баланса",
+            "TOTAL INCOME": "Общий доход",
+            "Total Income": "Общий доход",
+            "REAL EXPENSES": "Реальные расходы",
+            "Real Expenses": "Реальные расходы",
+            "REAL NET": "Чистая прибыль / Убыток",
+            "Real Net": "Чистая прибыль / Убыток",
+            "SETTLED IN THIS PERIOD": "Оплачено в этом периоде",
+            "Settled in this period": "Оплачено в этом периоде",
+            "WILL BE CHARGED SOON": "Скоро будут списаны",
+            "Will be charged soon": "Скоро будут списаны"
+        };
+
+        const monthsMapping = {
+            "January": "Январь", "February": "Февраль", "March": "Март", "April": "Апрель",
+            "May": "Май", "June": "Июнь", "July": "Июль", "August": "Август",
+            "September": "Сентябрь", "October": "Октябрь", "November": "Ноябрь", "December": "Декабрь"
+        };
+
+        function translateMonth(text) {
+            for (let eng in monthsMapping) {
+                if (text.includes(eng)) {
+                    return text.replace(eng, monthsMapping[eng]);
+                }
+            }
+            return text;
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // Cache original English text using textContent to bypass CSS display:none and text-transform caps
+            const standardSelectors = [
+                'h1', '.generated-text', '.section-label', '.tab-btn', 'th', 
+                '.category-header span:first-child', '.nested-section-title', 
+                '.pending-note', '.past-note', '#income p', '.month-title'
+            ];
+            
+            standardSelectors.forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => {
+                    let text = el.textContent.trim().replace(/\s+/g, ' ');
+                    el.setAttribute('data-en', text);
+                });
+            });
+        });
+
+        function setLanguage(lang) {
+            // 1. Translate standard elements using textContent
+            const standardSelectors = [
+                'h1', '.generated-text', '.section-label', '.tab-btn', 'th', 
+                '.category-header span:first-child', '.nested-section-title', 
+                '.pending-note', '.past-note', '#income p'
+            ];
+            
+            standardSelectors.forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => {
+                    const enText = el.getAttribute('data-en');
+                    if (enText) {
+                        el.textContent = (lang === 'ru' && ruTranslations[enText]) ? ruTranslations[enText] : enText;
+                    }
+                });
+            });
+
+            // 2. Smart card translation via recursive DOM walking
+            document.querySelectorAll('.card').forEach(card => {
+                function walkAndTranslate(node) {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        if (!node._originalValue) {
+                            node._originalValue = node.nodeValue;
+                        }
+                        
+                        let currentText = node._originalValue;
+                        if (lang === 'ru') {
+                            for (let eng in cardPhrases) {
+                                if (currentText.includes(eng)) {
+                                    currentText = currentText.replace(eng, cardPhrases[eng]);
+                                }
+                            }
+                        }
+                        node.nodeValue = currentText;
+                    } else if (node.nodeType === Node.ELEMENT_NODE) {
+                        node.childNodes.forEach(walkAndTranslate);
+                    }
+                }
+                card.childNodes.forEach(walkAndTranslate);
+            });
+
+            // 3. Translate month titles
+            document.querySelectorAll('.month-title').forEach(el => {
+                const enText = el.getAttribute('data-en');
+                if (enText) {
+                    el.textContent = (lang === 'ru') ? translateMonth(enText) : enText;
+                }
+            });
+
+            // Toggle active state for language buttons
+            document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+            document.getElementById('btn-ru').classList.toggle('active', lang === 'ru');
+        }
     </script>
-</body>
-</html>
