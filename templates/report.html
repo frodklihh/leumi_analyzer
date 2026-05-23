@@ -55,6 +55,7 @@
         .income-amount { color: #2a9d8f; }
         .expense-amount { color: #e63946; }
         .pending-card { border-left: 4px solid #f4a261; }
+        .past-card { border-left: 4px solid #9b8cb3; }
 
         .tabs { display: flex; gap: 8px; margin: 32px 0 20px; flex-wrap: wrap; }
         .tab-btn {
@@ -116,7 +117,6 @@
         .amount { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
         .unknown-section { border: 1px dashed #e63946; }
 
-        /* Monthly sections */
         .month-section {
             background: white;
             border-radius: 12px;
@@ -186,6 +186,16 @@
             font-size: 0.9rem;
             color: #614011;
         }
+
+        .past-note {
+            background: #f3eefa;
+            border-left: 4px solid #9b8cb3;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            color: #3d2e57;
+        }
     </style>
 </head>
 <body>
@@ -231,6 +241,16 @@
         </div>
     </div>
 
+    {% if report.past_settlements > 0 %}
+    <div class="section-label">📜 Past period charges</div>
+    <div class="summary">
+        <div class="card past-card">
+            <h3>Settled in this period</h3>
+            <div class="value expense-amount">₪{{ "{:,.2f}".format(report.past_settlements) }}</div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if report.pending_cc > 0 %}
     <div class="section-label">⏳ Pending charges</div>
     <div class="summary">
@@ -246,6 +266,9 @@
         <button class="tab-btn" onclick="switchTab(event, 'income')">💰 Income</button>
         {% if report.pending_transactions %}
         <button class="tab-btn" onclick="switchTab(event, 'pending')">⏳ Pending</button>
+        {% endif %}
+        {% if report.past_settlement_transactions %}
+        <button class="tab-btn" onclick="switchTab(event, 'past')">📜 Past charges</button>
         {% endif %}
         {% if report.monthly_breakdown %}
         <button class="tab-btn" onclick="switchTab(event, 'monthly')">📅 By Month</button>
@@ -331,6 +354,39 @@
                             <td>{{ tx.description }}</td>
                             <td>{{ tx.source }}</td>
                             <td class="amount expense-amount">₪{{ "{:,.2f}".format(tx.debit) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    </div>
+    {% endif %}
+
+    {% if report.past_settlement_transactions %}
+    <div id="past" class="tab-content">
+        <div class="past-note">
+            These are credit card purchases from before this reporting period
+            that the bank actually paid during this period.
+            They explain why the balance change differs from the period's net.
+        </div>
+        <details class="category-card" open>
+            <summary class="category-header">
+                <span>📜 Past period charges paid here</span>
+                <span class="amount expense-amount">₪{{ "{:,.2f}".format(report.past_settlements) }}</span>
+            </summary>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Date</th><th>Description</th><th>Source</th><th>Amount</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in report.past_settlement_transactions %}
+                        <tr>
+                            <td>{{ tx.date.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ tx.description }}</td>
+                            <td>{{ tx.source }}</td>
+                            <td class="amount expense-amount">₪{{ "{:,.2f}".format(tx.debit - tx.credit) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
