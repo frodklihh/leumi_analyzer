@@ -1,7 +1,6 @@
 """
 Shared fixtures for all tests.
 """
-
 import pytest
 from datetime import datetime
 from importer import Transaction
@@ -9,17 +8,14 @@ from importer import Transaction
 
 @pytest.fixture
 def sample_transactions():
-    """Bank-style transactions across multiple months."""
+    """Bank-style transactions across multiple billing months.
+
+    Note: billing_month uses cutoff_day=16, so:
+    - dates 1-15 belong to current calendar month's billing
+    - dates 16-31 belong to NEXT calendar month's billing
+    """
     return [
-        Transaction(
-            date=datetime(2026, 5, 15),
-            description="לאומי ויזה(כא)",
-            reference="5992",
-            debit=766.00,
-            credit=0.00,
-            balance=44172.07,
-            source="bank",
-        ),
+        # May billing month
         Transaction(
             date=datetime(2026, 5, 10),
             description="קרן מכבי-י",
@@ -39,14 +35,15 @@ def sample_transactions():
             source="bank",
         ),
         Transaction(
-            date=datetime(2026, 4, 17),
-            description="הע. אינטרנט",
-            reference="77579",
-            debit=1100.00,
+            date=datetime(2026, 5, 1),
+            description="חנות לא ידועה",
+            reference="99999",
+            debit=50.00,
             credit=0.00,
-            balance=56010.19,
+            balance=55000.00,
             source="bank",
         ),
+        # April billing month
         Transaction(
             date=datetime(2026, 4, 10),
             description="פרעון הלוואה",
@@ -56,15 +53,7 @@ def sample_transactions():
             balance=66541.41,
             source="bank",
         ),
-        Transaction(
-            date=datetime(2026, 5, 1),
-            description="חנות לא ידועה",
-            reference="99999",
-            debit=50.00,
-            credit=0.00,
-            balance=55000.00,
-            source="bank",
-        ),
+        # March billing month
         Transaction(
             date=datetime(2026, 3, 8),
             description="אסותא-מרכזים-י",
@@ -109,6 +98,62 @@ def sample_card_transactions():
             source="credit_card",
         ),
     ]
+
+
+@pytest.fixture
+def cc_settlement_tx():
+    """Bank transaction representing a CC settlement (lump sum)."""
+    return Transaction(
+        date=datetime(2026, 3, 15),
+        description="חיוב כרטיסי אשראי",
+        reference="999",
+        debit=2500.00,
+        credit=0.00,
+        balance=50000.00,
+        source="bank",
+    )
+
+
+@pytest.fixture
+def cc_refund_in_bank():
+    """Bank credit that's actually a credit card refund."""
+    return Transaction(
+        date=datetime(2026, 3, 11),
+        description="כרטיסי אשראי-י",
+        reference="888",
+        debit=0.00,
+        credit=500.00,
+        balance=52000.00,
+        source="bank",
+    )
+
+
+@pytest.fixture
+def card_refund_tx():
+    """Card transaction with credit > 0 (a refund from the merchant)."""
+    return Transaction(
+        date=datetime(2026, 3, 6),
+        description="TUI CRUISES VG.4413813",
+        reference="",
+        debit=0.00,
+        credit=500.00,
+        balance=0.00,
+        source="credit_card",
+    )
+
+
+@pytest.fixture
+def bank_fee_tx():
+    """Bank service fee transaction."""
+    return Transaction(
+        date=datetime(2026, 5, 1),
+        description="מסלול בסיסי",
+        reference="111",
+        debit=14.90,
+        credit=0.00,
+        balance=55000.00,
+        source="bank",
+    )
 
 
 @pytest.fixture

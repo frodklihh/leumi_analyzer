@@ -103,7 +103,17 @@ class TestCategorize:
 
         assert "🏥 Health & Medical" in categories
         assert "💰 Income" in categories
-        assert "💳 Subscriptions & Monthly Bills" in categories
+        assert "🏦 Bank Fees & Commissions" in categories
+
+    def test_subscriptions_category(self):
+        tx = make_tx("Spotify")
+
+        result = categorize([tx])
+
+        assert (
+            result[0].category
+            == "💳 Subscriptions & Monthly Bills"
+        )
 
     def test_unknown_to_other(
         self,

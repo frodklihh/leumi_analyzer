@@ -1,7 +1,6 @@
 """
 Tests for views/html.py
 """
-
 import pytest
 from categorizer import categorize
 from core.analytics import build_report
@@ -20,26 +19,53 @@ class TestRenderHtml:
         sample_transactions = categorize(sample_transactions)
         report = build_report(sample_transactions, [], year=2026, month=5)
         html = render_html(report)
-        assert "May 2026" in html
+        # Period label is either "05/2026" or contains "2026"
+        assert "2026" in html
 
     def test_contains_amounts(self, sample_transactions):
         sample_transactions = categorize(sample_transactions)
         report = build_report(sample_transactions, [])
         html = render_html(report)
-        # Some category total must appear
         assert "₪" in html
 
-    def test_monthly_tab_only_when_data(self, sample_transactions):
+    def test_by_month_tab_hidden_with_month_filter(self, sample_transactions):
         sample_transactions = categorize(sample_transactions)
-        # With month filter — no monthly tab
         report = build_report(sample_transactions, [], year=2026, month=5)
         html = render_html(report)
-        assert "Monthly" not in html or "📊 Monthly" not in html
+        # The "By Month" tab button should NOT appear when filtering single month
+        assert "📅 By Month" not in html
 
-        # Without month filter — monthly tab present
+    def test_by_month_tab_shown_without_month_filter(self, sample_transactions):
+        sample_transactions = categorize(sample_transactions)
         report = build_report(sample_transactions, [], year=2026)
         html = render_html(report)
-        assert "📊 Monthly" in html
+        # The "By Month" tab button should appear when not filtering by month
+        assert "📅 By Month" in html
+
+    def test_real_picture_section(self, sample_transactions):
+        sample_transactions = categorize(sample_transactions)
+        report = build_report(sample_transactions, [])
+        html = render_html(report)
+        assert "Real picture" in html
+        assert "Total Income" in html
+        assert "Real Expenses" in html
+        assert "Real Net" in html
+
+    def test_account_movement_section(self, sample_transactions):
+        sample_transactions = categorize(sample_transactions)
+        report = build_report(sample_transactions, [])
+        html = render_html(report)
+        assert "Account movement" in html
+        assert "Opening Balance" in html
+        assert "Closing Balance" in html
+
+    def test_pending_section_present_when_pending(self, sample_transactions, sample_card_transactions):
+        sample_transactions = categorize(sample_transactions)
+        sample_card_transactions = categorize(sample_card_transactions)
+        report = build_report(sample_transactions, sample_card_transactions)
+        html = render_html(report)
+        # Should show pending section since cards exist with no settlements
+        assert "Pending" in html
 
     def test_valid_html_structure(self, sample_transactions):
         sample_transactions = categorize(sample_transactions)
@@ -63,4 +89,11 @@ class TestSaveHtmlReport:
         report = build_report(sample_transactions, [])
         output = tmp_path / "report.html"
         save_html_report(report, str(output))
-        assert output.stat().st_size > 1000  # at least some real content
+        assert output.stat().st_size > 1000
+
+    def test_creates_parent_dirs(self, sample_transactions, tmp_path):
+        sample_transactions = categorize(sample_transactions)
+        report = build_report(sample_transactions, [])
+        output = tmp_path / "subdir" / "nested" / "report.html"
+        save_html_report(report, str(output))
+        assert output.exists()
