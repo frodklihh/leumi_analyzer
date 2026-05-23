@@ -2,7 +2,7 @@
 Tests for views/html.py
 """
 import pytest
-from categorizer import categorize
+from leumi_analyzer.categorizer import categorize
 from core.analytics import build_report
 from views.html import render_html, save_html_report
 
