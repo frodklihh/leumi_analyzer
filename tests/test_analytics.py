@@ -3,7 +3,7 @@ Tests for core/analytics.py
 """
 from datetime import datetime
 import pytest
-from importer import Transaction
+from scripts.importer import Transaction
 from core.analytics import (
     build_report,
     filter_transactions,

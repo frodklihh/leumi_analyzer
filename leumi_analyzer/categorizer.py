@@ -4,7 +4,7 @@ categorizer.py - transaction categorization via keyword matching
 
 import re
 from typing import Optional
-from importer import Transaction
+from scripts.importer import Transaction
 
 
 UNKNOWN_CATEGORY = "❓ Other"

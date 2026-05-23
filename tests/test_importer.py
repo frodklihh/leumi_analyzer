@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 
-from importer import (
+from scripts.importer import (
     _parse_amount,
     parse_leumi_xls,
     load_file,

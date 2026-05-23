@@ -3,7 +3,7 @@ Shared fixtures for all tests.
 """
 import pytest
 from datetime import datetime
-from importer import Transaction
+from scripts.importer import Transaction
 
 
 @pytest.fixture

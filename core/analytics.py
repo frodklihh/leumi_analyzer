@@ -1,6 +1,6 @@
 from datetime import datetime
 from dataclasses import dataclass, field
-from importer import Transaction
+from scripts.importer import Transaction
 from core.period import billing_month
 
 UNKNOWN_CATEGORY = "❓ Other"

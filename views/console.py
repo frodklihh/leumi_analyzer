@@ -3,7 +3,7 @@ views/console.py - terminal output of report data
 """
 
 from core.analytics import ReportData, UNKNOWN_CATEGORY
-from importer import Transaction
+from scripts.importer import Transaction
 
 
 def print_summary(report: ReportData) -> None:

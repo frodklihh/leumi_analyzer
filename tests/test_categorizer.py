@@ -4,7 +4,7 @@ Tests for categorizer.py
 
 from datetime import datetime
 
-from importer import Transaction
+from scripts.importer import Transaction
 
 from categorizer import (
     normalize_description,

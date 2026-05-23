@@ -5,11 +5,22 @@ main.py - entry point
 import argparse
 from pathlib import Path
 
-from importer import load_file
-from categorizer import categorize
+from scripts.importer import load_file
+from leumi_analyzer.categorizer import categorize
 from core.analytics import build_report, filter_transactions
 from views.console import print_report
 from views.html import save_html_report
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Making dynamic paths for templates and reports, so we can run the script from anywhere
+TEMPLATE_DIR = BASE_DIR / "templates"
+REPORT_DIR = BASE_DIR / "reports"
+
+# Ensure the report directory exists
+REPORT_DIR.mkdir(exist_ok=True)
+template_path = TEMPLATE_DIR / "report.html"
 
 
 def main():
