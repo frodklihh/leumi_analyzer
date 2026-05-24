@@ -9,6 +9,7 @@ from fetcher import session
 from fetcher.base import BankFetcher
 
 _LOGIN_URL = "https://digital.bankhapoalim.co.il/"
+_TRANSACTIONS_URL = "https://login.bankhapoalim.co.il/ng-portals/rb/he/current-account/transactions"
 _PROTECTED_URL = "https://login.bankhapoalim.co.il/ng-portals/rb/he/homepage"
 
 # When the session expires Hapoalim redirects back to digital.bankhapoalim.co.il.
@@ -51,21 +52,18 @@ class HapoalimFetcher(BankFetcher):
         month: int,
         dest: Path,
     ) -> list[Path]:
-        # TODO: fill in after inspecting the Hapoalim statement export UI.
-        #
-        # Expected flow:
-        #   1. Navigate to account movements / export page.
-        #   2. Set the date range for the requested billing month.
-        #   3. Select Excel export format.
-        #   4. Intercept the download:
-        #
-        #       async with page.expect_download() as dl_info:
-        #           await page.get_by_role("button", name="<export button>").click()
-        #       download = await dl_info.value
-        #       out = dest / download.suggested_filename
-        #       await download.save_as(out)
-        #       return [out]
+        await page.goto(_TRANSACTIONS_URL, wait_until="networkidle")
 
-        raise NotImplementedError(
-            "HapoalimFetcher.download_statement is not implemented yet."
-        )
+        # Open the period dropdown and select "2 years back".
+        # Filtering to the requested year/month happens later in build_report().
+        await page.locator("#period-filter-button-0").click()
+        await page.locator("#period-filter-period-last-2-years00").click()
+        await page.wait_for_load_state("networkidle")
+
+        async with page.expect_download() as dl_info:
+            await page.locator("a.kite-export-button").click()
+
+        download = await dl_info.value
+        out = dest / download.suggested_filename
+        await download.save_as(out)
+        return [out]
