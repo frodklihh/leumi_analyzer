@@ -26,6 +26,9 @@ bank_statement.xls
 cards_elena.xlsx
 cards_leonid.xlsx
 
+# Secrets
+.env
+
 # OS
 .DS_Store
 Thumbs.db

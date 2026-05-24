@@ -3,3 +3,5 @@ pandas
 openpyxl
 pytest
 jinja2
+python-dotenv
+playwright
