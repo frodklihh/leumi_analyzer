@@ -50,6 +50,20 @@ def cal_credentials() -> BankCredentials:
     )
 
 
+def hapoalim_credentials() -> BankCredentials:
+    return BankCredentials(
+        user=_require("HAPOALIM_USER"),
+        password=_require("HAPOALIM_PASSWORD"),
+    )
+
+
+def isracard_credentials() -> BankCredentials:
+    return BankCredentials(
+        user=_require("ISRACARD_USER"),
+        password=_require("ISRACARD_PASSWORD"),
+    )
+
+
 def email_config() -> EmailConfig:
     return EmailConfig(
         host=_optional("SMTP_HOST", "smtp.gmail.com"),
