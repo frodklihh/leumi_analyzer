@@ -7,12 +7,11 @@ from pathlib import Path
 
 from playwright.async_api import async_playwright
 
-from config.settings import cal_credentials, email_config, leumi_credentials
+from config.settings import email_config
 from core.analytics import build_report
 from core.period import billing_month
 from fetcher import session
-from fetcher.cal import CalCardFetcher
-from fetcher.leumi import LeumiAccountFetcher
+from fetcher.registry import BANK_REGISTRY, CARD_REGISTRY, make_bank_fetcher, make_card_fetcher
 from leumi_analyzer.categorizer import categorize
 from notifier.email import send_report
 from scripts.importer import load_file
@@ -21,9 +20,11 @@ from views.html import save_html_report
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+_DEFAULT_BANK = "leumi"
+_DEFAULT_CARDS = ["cal"]
+
 
 def _resolve_period(year: int | None, month: int | None) -> tuple[int, int]:
-    """Return (year, month) — defaults to the current billing month."""
     if year and month:
         return year, month
     current = billing_month(datetime.today())
@@ -31,7 +32,6 @@ def _resolve_period(year: int | None, month: int | None) -> tuple[int, int]:
 
 
 async def _fetch_one(browser, fetcher, year: int, month: int, dest: Path) -> list[Path]:
-    """Run a single fetcher in its own browser context."""
     ctx = await browser.new_context()
     await session.load(ctx, fetcher.name)
     try:
@@ -49,21 +49,29 @@ async def _run(args: argparse.Namespace) -> None:
     dest = BASE_DIR / "reports" / f"{year}-{month:02d}"
     dest.mkdir(parents=True, exist_ok=True)
 
+    bank_name = args.bank
+    card_names = args.cards
+
     print(f"\nPeriod : {year}-{month:02d}")
+    print(f"Bank   : {bank_name}")
+    print(f"Cards  : {', '.join(card_names)}")
     print(f"Output : {dest}\n")
+
+    bank_fetcher = make_bank_fetcher(bank_name)
+    card_fetchers = [make_card_fetcher(name) for name in card_names]
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=args.headless)
 
-        leumi = LeumiAccountFetcher(leumi_credentials())
-        cal = CalCardFetcher(cal_credentials())
-
-        bank_files, card_files = await asyncio.gather(
-            _fetch_one(browser, leumi, year, month, dest),
-            _fetch_one(browser, cal, year, month, dest),
+        results = await asyncio.gather(
+            _fetch_one(browser, bank_fetcher, year, month, dest),
+            *[_fetch_one(browser, cf, year, month, dest) for cf in card_fetchers],
         )
 
         await browser.close()
+
+    bank_files = results[0]
+    card_files = [path for files in results[1:] for path in files]
 
     if not bank_files and not card_files:
         print("No files downloaded — nothing to analyse.")
@@ -90,17 +98,34 @@ async def _run(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    bank_choices = list(BANK_REGISTRY)
+    card_choices = list(CARD_REGISTRY)
+
     parser = argparse.ArgumentParser(
-        description="Auto-fetch Leumi + Cal statements and generate an HTML report."
+        description="Auto-fetch bank + card statements and generate an HTML report."
     )
-    parser.add_argument("--year", type=int, help="Billing year  (default: current)")
+    parser.add_argument("--year",  type=int, help="Billing year  (default: current)")
     parser.add_argument("--month", type=int, help="Billing month (default: current)")
-    parser.add_argument("--email", action="store_true", help="Send report via email after generation")
+    parser.add_argument(
+        "--bank",
+        default=_DEFAULT_BANK,
+        choices=bank_choices,
+        help=f"Bank provider (default: {_DEFAULT_BANK})",
+    )
+    parser.add_argument(
+        "--cards",
+        nargs="+",
+        default=_DEFAULT_CARDS,
+        choices=card_choices,
+        metavar="CARD",
+        help=f"Card provider(s) (default: {_DEFAULT_CARDS}). Choices: {card_choices}",
+    )
+    parser.add_argument("--email",    action="store_true", help="Send report via email")
     parser.add_argument("--headless", action="store_true", help="Run browser without a visible window")
     parser.add_argument(
         "--clear-session",
-        metavar="BANK",
-        help="Delete the saved session for BANK and exit (leumi_bank | cal_card)",
+        metavar="NAME",
+        help="Delete the saved session for NAME and exit",
     )
     args = parser.parse_args()
 
