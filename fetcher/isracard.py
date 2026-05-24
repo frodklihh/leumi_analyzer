@@ -9,13 +9,12 @@ from fetcher import session
 from fetcher.base import BankFetcher
 
 _LOGIN_URL = "https://www.isracard.co.il/"
+_PROTECTED_URL = "https://web.isracard.co.il/StatusPage"
 
-# TODO: confirm exact post-login URL after inspecting with Isracard access.
-_PROTECTED_URL = "https://www.isracard.co.il/benefits/account-info/"
-
-# Substring present in the URL when the session expires and Isracard redirects to login.
-# TODO: confirm after inspecting session expiry behaviour.
-_LOGIN_MARKER = "/login"
+# When the session expires Isracard redirects back to www.isracard.co.il.
+# This subdomain is present in the login-page URL but absent in authenticated URLs
+# (which live under web.isracard.co.il).
+_LOGIN_MARKER = "www.isracard.co.il"
 
 
 class IsracardFetcher(BankFetcher):
@@ -26,9 +25,8 @@ class IsracardFetcher(BankFetcher):
         password — last 4 digits of any Isracard card (entered digit by digit)
 
     Login flow:
-        1. Fill ID field and 4 card-digit inputs.
-        2. Click "שלח קוד לנייד" → Isracard sends OTP via SMS.
-        3. Enter OTP code (TODO: OTP screen not yet inspected).
+        1. Fill ID + 4 card-digit inputs → click "שלח קוד לנייד" (send SMS OTP).
+        2. Enter the 6-digit SMS code → click "כניסה לחשבון שלי" (confirm).
     """
 
     name = "isracard"
@@ -46,23 +44,20 @@ class IsracardFetcher(BankFetcher):
 
         await page.locator("#otpLoginId_SMS").fill(self._credentials.user)
 
-        # The last 4 card digits are split across 4 individual inputs (.otp-digit-input).
-        # Fill each input with the corresponding character from credentials.password.
+        # The last 4 card digits are split across 4 individual inputs.
         digit_inputs = page.locator(".otp-digit-input")
         for i, digit in enumerate(self._credentials.password):
             await digit_inputs.nth(i).fill(digit)
 
         await page.get_by_role("button", name="שלח קוד לנייד").click()
 
-        # TODO: fill in after inspecting the OTP confirmation screen.
-        #
-        # Expected flow:
-        #   otp_input = page.locator('<otp code field selector>')
-        #   await otp_input.wait_for(state="visible", timeout=20_000)
-        #   code = input("[isracard] enter SMS code: ").strip()
-        #   await otp_input.fill(code)
-        #   await page.get_by_role("button", name="<confirm button text>").click()
-        #   await page.wait_for_url("**" + _PROTECTED_URL + "**")
+        otp_input = page.locator("#otpInput")
+        await otp_input.wait_for(state="visible", timeout=20_000)
+        code = input("[isracard] enter SMS code: ").strip()
+        await otp_input.fill(code)
+
+        await page.get_by_role("button", name="כניסה לחשבון שלי").click()
+        await page.wait_for_url(f"**{_PROTECTED_URL}**", timeout=15_000)
 
         print("[isracard] login complete")
 
